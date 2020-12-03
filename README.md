@@ -52,6 +52,12 @@ After preparing the data, 5 experiments were carried out in order to test each o
 * Hyperparameter Tuning: Grid search is an approach to hyperparameter tuning that will methodically build and evaluate a model for each combination of algorithm parameters specified in a grid (Paul, 2018). This means that, for a user-defined set of values for the hyperparameters, the grid search will run the model using all possible combinations in order to identify which one provides the best estimator. The Scikit-Learn library for Python contains a method that performs this grid search, called GridSearchCV()
 * Feature Selection: A customized function was generated in order to fit the models into datasets with different numbers of features. The ROC resulting value was then compared with the maximum ROC value obtained so far; if the new value was better, the number of features was stored in a variable called best_dim. This value was then used to shorten the features of the dataset and keep only the [best_dim] most important features. The most important features had already been identified during the data preparation, so this did not require additional processing
 
+#### Main Causes
+
+The feature importance from the RandomForest let us identify main causes in the car accidents issue:
+
+![DBSCAN](Results/feature.jpg)
+
 #### Results
 
 The results are shown in ROC. The best algorithm was LightGBM
