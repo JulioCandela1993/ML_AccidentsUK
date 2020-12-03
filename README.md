@@ -3,6 +3,8 @@
 The following ML process tends to analyze heat points and causes of accidents in UK (England, Scotland, Wales).
 Source: https://www.kaggle.com/daveianhickey/2000-16-traffic-flow-england-scotland-wales
 
+Team: Julio Candela, Valdemar Hernandez, Hung Nguyen, Ariston Lim
+
 There were more than 400,000 accidents occuring in the UK from 2012 to 2014. This means that on average, there are around 365 accidents happening daily. Thus, there is an urgent need to understand and dig deeper into these accidents: how and why they happened. Fortunately, the UK Police Department stored comprehensive information about the accidents. From this we could perform data analysis and even predict when accidents might happen. There are 3 main focus in this report:
 * Pre processing and Bivariate analysis
 * DBSCAN: Clusterization to identify heatmaps
