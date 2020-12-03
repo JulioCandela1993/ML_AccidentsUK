@@ -1,0 +1,130 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Dec  7 17:40:51 2019
+
+@author: juliochristian
+"""
+
+import pandas as pd
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import seaborn as sns
+from sklearn.preprocessing import normalize
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import GridSearchCV
+import time
+
+os.chdir("G:\Documentos\MasterDegree\BDMA\Classes\DataMining\FinalProject\Data")
+
+trainFile = 'accidents_clusterized.csv'
+trafficFile = 'ukTrafficAADF.csv'
+accidents_train = pd.read_csv(trainFile)
+traffic_data = pd.read_csv(trafficFile)
+
+
+accidents_train['Light_Condition_2'] = np.where(accidents_train['Light_Conditions'] == 'Daylight: Street light present' , 'Daylight', 'Darkness')
+accidents_train['Light_Condition_3'] = np.where(accidents_train['Light_Conditions'] == 'Darkeness: No street lighting' ,
+               'Darkeness: Null or Low lighting', accidents_train['Light_Conditions'])
+accidents_train['Light_Condition_3'] = np.where(accidents_train['Light_Condition_3'] == 'Darkness: Street lights present but unlit' ,
+               'Darkeness: Null or Low lighting', accidents_train['Light_Condition_3'])
+
+accidents_train['Pedestrian_Crossing_2'] = np.where(accidents_train['Pedestrian_Crossing-Physical_Facilities'] == 'Central refuge' ,
+               'No Pedestrian Crossing', accidents_train['Pedestrian_Crossing-Physical_Facilities'])
+accidents_train['Pedestrian_Crossing_2'] = np.where(accidents_train['Pedestrian_Crossing_2'] == 'Footbridge or subway' ,
+               'No Pedestrian Crossing', accidents_train['Pedestrian_Crossing_2'])
+accidents_train['Pedestrian_Crossing_2'] = np.where(accidents_train['Pedestrian_Crossing_2'] == 'No physical crossing within 50 meters' ,
+               'No Pedestrian Crossing', accidents_train['Pedestrian_Crossing_2'])
+
+traffic_data = traffic_data.rename(columns = {'Easting':'Location_Easting_OSGR','Northing':'Location_Northing_OSGR'})
+
+traffic_data[['Location_Easting_OSGR','Location_Northing_OSGR']].dtypes
+
+accidents_train[['Location_Easting_OSGR','Location_Northing_OSGR']].dtypes
+
+#accidents_train = pd.merge(accidents_train, traffic_data, on = ['Location_Northing_OSGR','Location_Easting_OSGR'])
+
+accidents_train['DateTime'] = pd.to_datetime(accidents_train['Date']+" "+accidents_train['Time'], format='%d/%m/%Y %H:%M')
+accidents_train['year'] = accidents_train['DateTime'].dt.year
+accidents_train['month'] = accidents_train['DateTime'].dt.month
+accidents_train['day'] = accidents_train['DateTime'].dt.day
+accidents_train['hour'] = accidents_train['DateTime'].dt.hour+(accidents_train['DateTime'].dt.hour/60)
+accidents_train.drop(['Date', 'Time', 'Year', 'DateTime'], axis=1, inplace=True)
+accidents_train['hour'] = accidents_train['hour'].astype(np.float32)
+
+columnnames = [accidents_train.columns , accidents_train.dtypes]
+
+def getPlotsandSummary(dataset, name_column, target_var, type_column):
+    bivar_analysis = dataset[[name_column,target_var]]
+    if len(np.unique(np.array(bivar_analysis[name_column].dropna().astype(str)))) <=0:
+        return 0
+    max_bins = 20
+    if type_column == np.dtype('int64'):
+        bins = len(np.unique(np.array(bivar_analysis[name_column])))
+        fig, axis1 = plt.subplots(figsize=(10,5))
+        p95 = np.percentile(bivar_analysis[name_column], 99.9)
+        if(bins>max_bins):
+            bivar_analysis[name_column] = pd.cut(bivar_analysis[name_column] , 20 , retbins = False).astype(str)
+            plt.xticks(rotation=90)
+        else:
+            plt.xlim(0,p95)
+        bivar = bivar_analysis.groupby(name_column).agg({name_column:'size',target_var:'sum'})
+        bivar['por_fatal'] = bivar[target_var]/bivar[name_column]*100
+        axis_x = bivar.index
+        
+        plt.title(name_column)
+        plt.bar(axis_x , bivar[name_column], label = '# of Accidents')     
+        plt.legend()
+        axis2 = axis1.twinx()        
+        axis2.plot(axis_x , bivar['por_fatal'], color = 'red', linestyle='dashed', marker='o', label = 'Percentage Fatal Accidents')
+        axis2.yaxis.set_major_formatter(mtick.PercentFormatter())
+        for i,j in zip(axis_x,bivar['por_fatal']):
+            axis2.annotate(str(round(j,2)) + '%',xy=(i,j), size = 15, color = 'red', ha='center', va="bottom")
+        plt.legend()
+        plt.show()
+    elif type_column == np.dtype('object'):
+        bins = min(max_bins, len(np.unique(np.array(bivar_analysis[name_column].astype(str)))))
+        if(bins<max_bins):
+            fig, axis1 = plt.subplots(figsize=(10,5))
+            bivar_analysis[name_column].fillna("Missing Info", inplace = True)
+            bivar = bivar_analysis.groupby(name_column).agg({name_column:'size',target_var:'sum'})
+            bivar['por_fatal'] = bivar[target_var]/bivar[name_column]*100
+            axis_x = bivar.index
+            plt.title(name_column)
+            plt.bar(axis_x , bivar[name_column], label = '# of Accidents')     
+            plt.legend()
+            plt.xticks(rotation=90)
+            axis2 = axis1.twinx()        
+            axis2.plot(axis_x , bivar['por_fatal'], color = 'red', linestyle='dashed', marker='o', label = 'Percentage Fatal Accidents')
+            axis2.yaxis.set_major_formatter(mtick.PercentFormatter())
+            for i,j in zip(axis_x,bivar['por_fatal']):
+                axis2.annotate(str(round(j,2)) + '%',xy=(i,j), size = 15, color = 'red', ha='center', va="bottom")
+            plt.legend()
+            plt.show()
+    else:
+        fig, axis1 = plt.subplots(figsize=(10,5))
+        bivar_analysis[name_column] = pd.cut(bivar_analysis[name_column] , 10 , retbins = False)
+        bivar = bivar_analysis.groupby(name_column).agg({name_column:'size',target_var:'sum'})
+        bivar['por_fatal'] = bivar[target_var]/bivar[name_column]*100
+        axis_x = bivar.index.astype(str)
+        plt.title(name_column)
+        plt.bar(np.array(axis_x) , bivar[name_column], label = '# of Accidents')     
+        plt.legend()
+        plt.xticks(rotation=90)
+        axis2 = axis1.twinx()        
+        axis2.plot(axis_x , bivar['por_fatal'], color = 'red', linestyle='dashed', marker='o', label = 'Percentage Fatal Accidents')
+        axis2.yaxis.set_major_formatter(mtick.PercentFormatter())
+        for i,j in zip(axis_x,bivar['por_fatal']):
+            axis2.annotate(str(round(j,2)) + '%',xy=(i,j), size = 15, color = 'red', ha='center', va="bottom")
+        plt.legend()
+        plt.show()        
+    
+target_var = 'isFatal'
+for i in range(len(columnnames[0])):
+    type_column =  columnnames[1][i]
+    name_column = columnnames[0][i]
+    if target_var!=name_column:
+        getPlotsandSummary(accidents_train[[name_column,target_var]], name_column, target_var, type_column)    
+
+
